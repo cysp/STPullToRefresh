@@ -4,6 +4,32 @@
 #import "STPullToRefreshHelper.h"
 
 
+@interface STPullToRefreshExampleView : UIView<STPullToRefreshHelperView>
+@end
+@implementation STPullToRefreshExampleView {
+@private
+    UIView *_innerView;
+}
++ (CGFloat)naturalHeight {
+    return 40;
+}
+- (id)initWithFrame:(CGRect)frame {
+    if ((self = [super initWithFrame:frame])) {
+        UIView * const innerView = _innerView = [[UIView alloc] initWithFrame:CGRectZero];
+        innerView.backgroundColor = [[UIColor orangeColor] colorWithAlphaComponent:.2];
+        [self addSubview:innerView];
+    }
+    return self;
+}
+- (void)layoutSubviews {
+    CGRect const bounds = self.bounds;
+    UIView * const innerView = _innerView;
+    innerView.frame = CGRectInset(bounds, 2, 2);
+}
+- (void)setState:(STPullToRefreshState)state animated:(BOOL)animated {
+}
+@end
+
 @interface STViewController () <STPullToRefreshHelperDelegate>
 @property (nonatomic,strong) UIScrollView *scrollView;
 @property (nonatomic,strong,readonly) STPullToRefreshHelper *pulltorefreshHelper;
@@ -13,7 +39,7 @@
 
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil {
     if ((self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil])) {
-        _pulltorefreshHelper = [[STPullToRefreshHelper alloc] initWithDirection:STPullToRefreshDirectionUp delegate:self];
+        _pulltorefreshHelper = [[STPullToRefreshHelper alloc] initWithDirection:STPullToRefreshDirectionUp viewClass:[STPullToRefreshExampleView class] delegate:self];
 
         self.navigationItem.rightBarButtonItem = self.editButtonItem;
     }
@@ -23,6 +49,7 @@
 - (void)loadView {
     self.view = [[UIView alloc] initWithFrame:(CGRect){ .size = { .width = 320, .height = 480 }}];
     UIView * const view = self.view;
+    view.backgroundColor = [UIColor whiteColor];
 
     UIScrollView * const scrollView = _scrollView = [[UITableView alloc] initWithFrame:view.bounds style:UITableViewStylePlain];
     scrollView.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
@@ -31,12 +58,7 @@
     scrollView.alwaysBounceVertical = YES;
     scrollView.contentSize = scrollView.bounds.size;
     scrollView.bounces = YES;
-
-    UIView * const bleh = [[UIView alloc] initWithFrame:(CGRect){ .size = { .width = 100, .height = 100 } }];
-    bleh.backgroundColor = [UIColor blueColor];
-    [scrollView addSubview:bleh];
-
-    view.backgroundColor = [UIColor whiteColor];
+    scrollView.contentInset = (UIEdgeInsets){ .top = 10 };
 }
 
 - (void)viewDidLoad {

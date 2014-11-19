@@ -1,21 +1,14 @@
+//  This Source Code Form is subject to the terms of the Mozilla Public
+//  License, v. 2.0. If a copy of the MPL was not distributed with this
+//  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
 //  Copyright (c) 2013 Scott Talbot. All rights reserved.
 
 #import "STPullToRefreshHelper.h"
 #import <QuartzCore/QuartzCore.h>
 
 
-static const CGFloat STPullToRefreshHelperViewHeight = 40;
-
-typedef enum STPullToRefreshState {
-    STPullToRefreshStateIdle = 0,
-    STPullToRefreshStateWaitingForRelease,
-    STPullToRefreshStateLoading,
-    STPullToRefreshStateLoaded,
-} STPullToRefreshState;
-
-
-@interface STPullToRefreshHelperView : UIView
-@property (nonatomic,assign,readonly) STPullToRefreshState state;
+@interface STPullToRefreshHelperView : UIView<STPullToRefreshHelperView>
 - (void)setState:(STPullToRefreshState)state animated:(BOOL)animated;
 @end
 
@@ -23,7 +16,7 @@ typedef enum STPullToRefreshState {
 @interface STPullToRefreshHelper ()
 - (id)initWithDirection:(STPullToRefreshDirection)direction delegate:(id<STPullToRefreshHelperDelegate>)delegate;
 @property (nonatomic,weak,readonly) id<STPullToRefreshHelperDelegate> delegate;
-@property (nonatomic,strong) STPullToRefreshHelperView *view;
+@property (nonatomic,strong) UIView<STPullToRefreshHelperView> *view;
 @end
 
 
@@ -34,11 +27,16 @@ typedef enum STPullToRefreshState {
 }
 
 - (id)initWithDirection:(STPullToRefreshDirection)direction delegate:(id<STPullToRefreshHelperDelegate>)delegate {
+    return [self initWithDirection:direction viewClass:nil delegate:delegate];
+}
+- (id)initWithDirection:(STPullToRefreshDirection)direction viewClass:(Class)viewClass delegate:(id<STPullToRefreshHelperDelegate>)delegate {
     if ((self = [super init])) {
         _direction = direction;
         _delegate = delegate;
 
-        _view = [[STPullToRefreshHelperView alloc] initWithFrame:(CGRect){ .size = { 320, STPullToRefreshHelperViewHeight } }];
+        viewClass = viewClass ?: [STPullToRefreshHelperView class];
+        CGFloat const viewHeight = [viewClass naturalHeight];
+        _view = [[viewClass alloc] initWithFrame:(CGRect){ .size = { 320, viewHeight } }];
         _view.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleBottomMargin;
     }
     return self;
@@ -52,18 +50,13 @@ typedef enum STPullToRefreshState {
 
     _scrollView = scrollView;
     UIView * const view = self.view;
+    CGFloat const viewHeight = [view.class naturalHeight];
 
     switch (_direction) {
         case STPullToRefreshDirectionUp: {
-            CGRect const frame = (CGRect){ .origin = { .y = -STPullToRefreshHelperViewHeight }, .size = { .width = scrollView.bounds.size.width, .height = STPullToRefreshHelperViewHeight } };
+            CGRect const frame = (CGRect){ .origin = { .y = -viewHeight }, .size = { .width = scrollView.bounds.size.width, .height = viewHeight } };
             view.frame = frame;
             view.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleBottomMargin;
-            [scrollView addSubview:view];
-        } break;
-        case STPullToRefreshDirectionDown: {
-            CGRect const frame = (CGRect){ .origin = { .y = scrollView.contentSize.height }, .size = { .width = scrollView.bounds.size.width, .height = STPullToRefreshHelperViewHeight } };
-            view.frame = frame;
-            view.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleTopMargin;
             [scrollView addSubview:view];
         } break;
     }
@@ -88,39 +81,22 @@ typedef enum STPullToRefreshState {
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
     UIScrollView * const scrollView = self.scrollView;
-    STPullToRefreshHelperView * const view = _view;
+    UIEdgeInsets const contentInset = scrollView.contentInset;
+    CGPoint const contentOffset = scrollView.contentOffset;
+    UIView<STPullToRefreshHelperView> * const view = _view;
+    CGFloat const viewHeight = [view.class naturalHeight];
     STPullToRefreshDirection const direction = _direction;
     STPullToRefreshState const state = _state;
 
     if (object == scrollView) {
-        if ([keyPath isEqualToString:@"contentSize"]) {
-            if (direction == STPullToRefreshDirectionDown) {
-                CGRect f = view.frame;
-                f.origin.y = scrollView.contentSize.height;
-                view.frame = f;
-            }
-        } else if ([keyPath isEqualToString:@"contentOffset"]) {
+        if ([keyPath isEqualToString:@"contentOffset"]) {
             if (state != STPullToRefreshStateLoading) {
-                CGPoint const contentOffset = scrollView.contentOffset;
-                CGFloat const pullDistance = STPullToRefreshHelperViewHeight;
-
                 if (scrollView.isDragging) {
+                    CGFloat const pullDistance = viewHeight;
                     switch (direction) {
                         case STPullToRefreshDirectionUp: {
                             STPullToRefreshState newState;
                             if (contentOffset.y < -pullDistance) {
-                                newState = STPullToRefreshStateWaitingForRelease;
-                            } else {
-                                newState = STPullToRefreshStateIdle;
-                            }
-                            [self setState:newState animated:YES];
-                        } break;
-                        case STPullToRefreshDirectionDown: {
-                            CGSize contentSize = scrollView.contentSize;
-                            CGSize frameSize = scrollView.frame.size;
-
-                            STPullToRefreshState newState;
-                            if (contentOffset.y > (contentSize.height - frameSize.height + pullDistance)) {
                                 newState = STPullToRefreshStateWaitingForRelease;
                             } else {
                                 newState = STPullToRefreshStateIdle;
@@ -134,6 +110,22 @@ typedef enum STPullToRefreshState {
                 }
             }
         }
+        CGFloat offsetY = 0;
+        switch (state) {
+            case STPullToRefreshStateLoading:
+                offsetY = viewHeight;
+                break;
+            default:
+                break;
+        }
+        CGFloat const viewOriginY = -contentInset.top + offsetY + MIN(-viewHeight, contentOffset.y + contentInset.top);
+        CGPoint viewCenter = (CGPoint){
+            .x = CGRectGetMidX(scrollView.bounds),
+            .y = viewOriginY + viewHeight/2.,
+        };
+        viewCenter.y = MIN(contentOffset.y + viewHeight/2., viewCenter.y);
+        fprintf(stderr, "contentOffset: %.2f %.2f\n", contentOffset.y, viewCenter.y - viewHeight/2.);
+        view.center = viewCenter;
     }
 }
 
@@ -160,14 +152,13 @@ typedef enum STPullToRefreshState {
         verticalInsetModifier = -1;
     }
 
-    CGFloat const verticalInset = STPullToRefreshHelperViewHeight;
+    UIView<STPullToRefreshHelperView> * const view = self.view;
+    CGFloat const viewHeight = [view.class naturalHeight];
+    CGFloat const verticalInset = viewHeight;
     UIEdgeInsets edgeInsets = scrollView.contentInset;
     switch (_direction) {
         case STPullToRefreshDirectionUp:
             edgeInsets.top += verticalInset * verticalInsetModifier;
-            break;
-        case STPullToRefreshDirectionDown:
-            edgeInsets.bottom += verticalInset * verticalInsetModifier;
             break;
     }
 
@@ -179,19 +170,19 @@ typedef enum STPullToRefreshState {
 @end
 
 
-@interface STPullToRefreshHelperView () {
+@implementation STPullToRefreshHelperView {
 @private
+    STPullToRefreshState _state;
     UIActivityIndicatorView *_activityIndicatorView;
     UILabel *_pullInstructionsLabel;
     UILabel *_releaseInstructionsLabel;
 }
-@end
-
-
-@implementation STPullToRefreshHelperView
-@synthesize state = _state;
++ (CGFloat)naturalHeight {
+    return 40;
+}
 - (id)initWithFrame:(CGRect)frame {
-    if ((self = [super initWithFrame:CGRectMake(0, 0, 320, 40)])) {
+    CGFloat const height = [self.class naturalHeight];
+    if ((self = [super initWithFrame:CGRectMake(0, 0, 320, height)])) {
         CGRect const bounds = self.bounds;
         self.backgroundColor = [UIColor clearColor];
         self.opaque = NO;
@@ -256,12 +247,12 @@ typedef enum STPullToRefreshState {
         }
 
         [UIView animateWithDuration:.2 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{
-            _activityIndicatorView.alpha = (state == STPullToRefreshStateLoading) ? 1 : 0;
-            _pullInstructionsLabel.alpha = (state == STPullToRefreshStateIdle) ? 1 : 0;
-            _releaseInstructionsLabel.alpha = (state == STPullToRefreshStateWaitingForRelease) ? 1 : 0;
+            self->_activityIndicatorView.alpha = (state == STPullToRefreshStateLoading) ? 1 : 0;
+            self->_pullInstructionsLabel.alpha = (state == STPullToRefreshStateIdle) ? 1 : 0;
+            self->_releaseInstructionsLabel.alpha = (state == STPullToRefreshStateWaitingForRelease) ? 1 : 0;
         } completion:^(BOOL finished) {
-            if (_state != STPullToRefreshStateLoading) {
-                [_activityIndicatorView stopAnimating];
+            if (self->_state != STPullToRefreshStateLoading) {
+                [self->_activityIndicatorView stopAnimating];
             }
         }];
     }
