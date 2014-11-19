@@ -8,11 +8,6 @@
 #import <QuartzCore/QuartzCore.h>
 
 
-@interface STPullToRefreshHelperView : UIView<STPullToRefreshHelperView>
-- (void)setState:(STPullToRefreshState)state animated:(BOOL)animated;
-@end
-
-
 @interface STPullToRefreshHelper ()
 - (id)initWithDirection:(STPullToRefreshDirection)direction delegate:(id<STPullToRefreshHelperDelegate>)delegate;
 @property (nonatomic,weak,readonly) id<STPullToRefreshHelperDelegate> delegate;
@@ -43,26 +38,30 @@
 }
 
 - (void)setScrollView:(UIScrollView *)scrollView {
-    [_scrollView removeObserver:self forKeyPath:@"contentSize"];
-    [_scrollView removeObserver:self forKeyPath:@"contentOffset"];
+    if (scrollView != _scrollView) {
+        [_scrollView removeObserver:self forKeyPath:@"contentSize"];
+        [_scrollView removeObserver:self forKeyPath:@"contentOffset"];
+        [_scrollView removeObserver:self forKeyPath:@"contentInset"];
 
-    [_view removeFromSuperview];
+        [_view removeFromSuperview];
 
-    _scrollView = scrollView;
-    UIView * const view = self.view;
-    CGFloat const viewHeight = [view.class naturalHeight];
+        _scrollView = scrollView;
+        UIView * const view = self.view;
+        CGFloat const viewHeight = [view.class naturalHeight];
 
-    switch (_direction) {
-        case STPullToRefreshDirectionUp: {
-            CGRect const frame = (CGRect){ .origin = { .y = -viewHeight }, .size = { .width = scrollView.bounds.size.width, .height = viewHeight } };
-            view.frame = frame;
-            view.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleBottomMargin;
-            [scrollView addSubview:view];
-        } break;
+        switch (_direction) {
+            case STPullToRefreshDirectionUp: {
+                CGRect const frame = (CGRect){ .origin = { .y = -viewHeight }, .size = { .width = scrollView.bounds.size.width, .height = viewHeight } };
+                view.frame = frame;
+                view.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleBottomMargin;
+                [scrollView addSubview:view];
+            } break;
+        }
+
+        [scrollView addObserver:self forKeyPath:@"contentSize" options:NSKeyValueObservingOptionNew context:NULL];
+        [scrollView addObserver:self forKeyPath:@"contentOffset" options:NSKeyValueObservingOptionNew context:NULL];
+        [scrollView addObserver:self forKeyPath:@"contentInset" options:NSKeyValueObservingOptionNew context:NULL];
     }
-
-    [scrollView addObserver:self forKeyPath:@"contentSize" options:NSKeyValueObservingOptionNew context:NULL];
-    [scrollView addObserver:self forKeyPath:@"contentOffset" options:NSKeyValueObservingOptionNew context:NULL];
 }
 
 
@@ -74,7 +73,7 @@
         _state = state;
         [_view setState:state animated:animated];
 
-        [self modifyScrollView:scrollView forState:state oldState:oldState];
+        [self modifyScrollView:scrollView forState:state oldState:oldState animated:animated];
     }
 }
 
@@ -96,12 +95,12 @@
                     switch (direction) {
                         case STPullToRefreshDirectionUp: {
                             STPullToRefreshState newState;
-                            if (contentOffset.y < -pullDistance) {
+                            if (contentInset.top + contentOffset.y < -pullDistance) {
                                 newState = STPullToRefreshStateWaitingForRelease;
                             } else {
                                 newState = STPullToRefreshStateIdle;
                             }
-                            [self setState:newState animated:YES];
+                            [self setState:newState animated:NO];
                         } break;
                     }
                 } else if (state == STPullToRefreshStateWaitingForRelease) {
@@ -118,14 +117,25 @@
             default:
                 break;
         }
-        CGFloat const viewOriginY = -contentInset.top + offsetY + MIN(-viewHeight, contentOffset.y + contentInset.top);
+        CGFloat const scrollViewOriginY = contentOffset.y + contentInset.top;
+        CGFloat const viewOriginY = MIN(-viewHeight, scrollViewOriginY);
+        CGFloat viewVisibility;
+        switch (state) {
+            case STPullToRefreshStateIdle:
+            case STPullToRefreshStateLoaded:
+            case STPullToRefreshStateWaitingForRelease:
+                viewVisibility = -scrollViewOriginY / viewHeight;
+                break;
+            case STPullToRefreshStateLoading:
+                viewVisibility = 1;
+                break;
+        }
         CGPoint viewCenter = (CGPoint){
             .x = CGRectGetMidX(scrollView.bounds),
             .y = viewOriginY + viewHeight/2.,
         };
-        viewCenter.y = MIN(contentOffset.y + viewHeight/2., viewCenter.y);
-        fprintf(stderr, "contentOffset: %.2f %.2f\n", contentOffset.y, viewCenter.y - viewHeight/2.);
         view.center = viewCenter;
+        view.alpha = viewVisibility;
     }
 }
 
@@ -145,6 +155,9 @@
 }
 
 - (void)modifyScrollView:(UIScrollView *)scrollView forState:(STPullToRefreshState)state oldState:(STPullToRefreshState)oldState {
+    return [self modifyScrollView:scrollView forState:state oldState:oldState animated:NO];
+}
+- (void)modifyScrollView:(UIScrollView *)scrollView forState:(STPullToRefreshState)state oldState:(STPullToRefreshState)oldState animated:(BOOL)animated {
     int verticalInsetModifier = 0;
     if (state == STPullToRefreshStateLoading && oldState != STPullToRefreshStateLoading) {
         verticalInsetModifier = 1;
@@ -162,9 +175,15 @@
             break;
     }
 
-    [UIView animateWithDuration:1./3. delay:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionAllowUserInteraction animations:^{
+    void(^animations)(void) = ^{
         [scrollView setContentInset:edgeInsets];
-    } completion:nil];
+    };
+
+    if (animated) {
+        [UIView animateWithDuration:1./3. delay:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionAllowUserInteraction animations:animations completion:nil];
+    } else {
+        animations();
+    }
 }
 
 @end
@@ -246,15 +265,24 @@
             [_activityIndicatorView startAnimating];
         }
 
-        [UIView animateWithDuration:.2 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{
+        void(^animations)(void) = ^{
             self->_activityIndicatorView.alpha = (state == STPullToRefreshStateLoading) ? 1 : 0;
             self->_pullInstructionsLabel.alpha = (state == STPullToRefreshStateIdle) ? 1 : 0;
             self->_releaseInstructionsLabel.alpha = (state == STPullToRefreshStateWaitingForRelease) ? 1 : 0;
-        } completion:^(BOOL finished) {
+        };
+
+        void(^completion)(BOOL) = ^(BOOL finished) {
             if (self->_state != STPullToRefreshStateLoading) {
                 [self->_activityIndicatorView stopAnimating];
             }
-        }];
+        };
+
+        if (animated) {
+            [UIView animateWithDuration:animated ? .2 : 0 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:animations completion:completion];
+        } else {
+            animations();
+            completion(YES);
+        }
     }
 }
 

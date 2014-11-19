@@ -4,7 +4,7 @@
 #import "STPullToRefreshHelper.h"
 
 
-@interface STPullToRefreshExampleView : UIView<STPullToRefreshHelperView>
+@interface STPullToRefreshExampleView : STPullToRefreshHelperView<STPullToRefreshHelperView>
 @end
 @implementation STPullToRefreshExampleView {
 @private
@@ -18,15 +18,19 @@
         UIView * const innerView = _innerView = [[UIView alloc] initWithFrame:CGRectZero];
         innerView.backgroundColor = [[UIColor orangeColor] colorWithAlphaComponent:.2];
         [self addSubview:innerView];
+
+        self.backgroundColor = [UIColor redColor];
     }
     return self;
 }
 - (void)layoutSubviews {
+    [super layoutSubviews];
     CGRect const bounds = self.bounds;
     UIView * const innerView = _innerView;
     innerView.frame = CGRectInset(bounds, 2, 2);
 }
 - (void)setState:(STPullToRefreshState)state animated:(BOOL)animated {
+    [super setState:state animated:animated];
 }
 @end
 
@@ -39,7 +43,7 @@
 
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil {
     if ((self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil])) {
-        _pulltorefreshHelper = [[STPullToRefreshHelper alloc] initWithDirection:STPullToRefreshDirectionUp viewClass:[STPullToRefreshExampleView class] delegate:self];
+        _pulltorefreshHelper = [[STPullToRefreshHelper alloc] initWithDirection:STPullToRefreshDirectionUp viewClass:nil delegate:self];
 
         self.navigationItem.rightBarButtonItem = self.editButtonItem;
     }
@@ -58,22 +62,24 @@
     scrollView.alwaysBounceVertical = YES;
     scrollView.contentSize = scrollView.bounds.size;
     scrollView.bounces = YES;
-    scrollView.contentInset = (UIEdgeInsets){ .top = 10 };
-}
-
-- (void)viewDidLoad {
-    [super viewDidLoad];
-
-    UIScrollView * const scrollView = self.scrollView;
-
-    STPullToRefreshHelper * const pulltorefreshHelper = self.pulltorefreshHelper;
-    pulltorefreshHelper.scrollView = scrollView;
 }
 
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
+
+    id<UILayoutSupport> const topLayoutGuide = [self respondsToSelector:@selector(topLayoutGuide)] ? self.topLayoutGuide : nil;
+    UIEdgeInsets const contentInset = (UIEdgeInsets){
+        .top = topLayoutGuide.length,
+    };
+
     UIScrollView * const scrollView = self.scrollView;
+    STPullToRefreshHelper * const pulltorefreshHelper = self.pulltorefreshHelper;
+
     scrollView.contentSize = scrollView.bounds.size;
+    scrollView.contentInset = contentInset;
+    scrollView.scrollIndicatorInsets = contentInset;
+
+    pulltorefreshHelper.scrollView = scrollView;
 }
 
 #pragma mark - STPullToRefreshHelperDelegate

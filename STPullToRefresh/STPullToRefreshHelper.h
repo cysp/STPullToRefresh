@@ -32,6 +32,10 @@ typedef enum STPullToRefreshState {
 - (void)setState:(STPullToRefreshState)state animated:(BOOL)animated;
 @end
 
+@interface STPullToRefreshHelperView : UIView<STPullToRefreshHelperView>
+- (void)setState:(STPullToRefreshState)state animated:(BOOL)animated;
+@end
+
 
 @interface STPullToRefreshHelper : NSObject
 
