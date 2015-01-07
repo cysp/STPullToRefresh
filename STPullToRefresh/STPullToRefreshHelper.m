@@ -88,27 +88,6 @@
     STPullToRefreshState const state = _state;
 
     if (object == scrollView) {
-        if ([keyPath isEqualToString:@"contentOffset"]) {
-            if (state != STPullToRefreshStateLoading) {
-                if (scrollView.isDragging) {
-                    CGFloat const pullDistance = viewHeight;
-                    switch (direction) {
-                        case STPullToRefreshDirectionUp: {
-                            STPullToRefreshState newState;
-                            if (contentInset.top + contentOffset.y < -pullDistance) {
-                                newState = STPullToRefreshStateWaitingForRelease;
-                            } else {
-                                newState = STPullToRefreshStateIdle;
-                            }
-                            [self setState:newState animated:NO];
-                        } break;
-                    }
-                } else if (state == STPullToRefreshStateWaitingForRelease) {
-                    [self setState:STPullToRefreshStateLoading animated:YES];
-                    [self notifyDidTriggerLoad];
-                }
-            }
-        }
         CGFloat offsetY = 0;
         switch (state) {
             case STPullToRefreshStateLoading:
@@ -136,6 +115,28 @@
         };
         view.center = viewCenter;
         view.alpha = viewVisibility;
+        
+        if ([keyPath isEqualToString:@"contentOffset"]) {
+            if (state != STPullToRefreshStateLoading) {
+                if (scrollView.isDragging) {
+                    CGFloat const pullDistance = viewHeight;
+                    switch (direction) {
+                        case STPullToRefreshDirectionUp: {
+                            STPullToRefreshState newState;
+                            if (contentInset.top + contentOffset.y < -pullDistance) {
+                                newState = STPullToRefreshStateWaitingForRelease;
+                            } else {
+                                newState = STPullToRefreshStateIdle;
+                            }
+                            [self setState:newState animated:NO];
+                        } break;
+                    }
+                } else if (state == STPullToRefreshStateWaitingForRelease) {
+                    [self setState:STPullToRefreshStateLoading animated:YES];
+                    [self notifyDidTriggerLoad];
+                }
+            }
+        }
     }
 }
 
