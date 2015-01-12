@@ -56,7 +56,6 @@
                 view.frame = frame;
                 view.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleBottomMargin;
                 UIView *backgroundView = nil;
-                [scrollView addSubview:view];
                 if ([scrollView isKindOfClass:[UITableView class]]) {
                     UITableView *tableView = (UITableView *)scrollView;
                     backgroundView = [tableView backgroundView];
@@ -66,6 +65,7 @@
                 } else {
                     [scrollView insertSubview:view atIndex:0];
                 }
+
             } break;
         }
 
@@ -73,6 +73,14 @@
         [scrollView addObserver:self forKeyPath:@"contentOffset" options:NSKeyValueObservingOptionNew context:NULL];
         [scrollView addObserver:self forKeyPath:@"contentInset" options:NSKeyValueObservingOptionNew context:NULL];
     }
+}
+
+- (void)moveRefreshViewToFront {
+    UIScrollView * const scrollView = self.scrollView;
+    UIView * const view = self.view;
+    
+    [view removeFromSuperview];
+    [scrollView insertSubview:view atIndex:[scrollView.subviews count]];
 }
 
 
@@ -87,7 +95,6 @@
         [self modifyScrollView:scrollView forState:state oldState:oldState animated:animated];
     }
 }
-
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
     UIScrollView * const scrollView = self.scrollView;

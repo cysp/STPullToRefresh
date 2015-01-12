@@ -48,6 +48,9 @@ typedef enum STPullToRefreshState {
 @property (nonatomic,unsafe_unretained) UIScrollView *scrollView;
 @property (nonatomic,strong,readonly) UIView<STPullToRefreshHelperView> *view;
 
+// Move the helper view to front of the scroll views subviews.
+- (void)moveRefreshViewToFront;
+
 - (void)didFinishLoading;
 
 @end
