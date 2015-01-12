@@ -33,6 +33,7 @@
         CGFloat const viewHeight = [viewClass naturalHeight];
         _view = [[viewClass alloc] initWithFrame:(CGRect){ .size = { 320, viewHeight } }];
         _view.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleBottomMargin;
+        _triggerDistance = viewHeight;
     }
     return self;
 }
@@ -54,7 +55,7 @@
                 CGRect const frame = (CGRect){ .origin = { .y = -viewHeight }, .size = { .width = scrollView.bounds.size.width, .height = viewHeight } };
                 view.frame = frame;
                 view.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleBottomMargin;
-                [scrollView addSubview:view];
+                [scrollView insertSubview:view atIndex:0];
             } break;
         }
 
@@ -115,13 +116,21 @@
         view.alpha = viewVisibility;
         
         if ([keyPath isEqualToString:@"contentOffset"]) {
+            CGFloat const triggerDistance = [self triggerDistance];
+            CGFloat const pullDistance = -(contentInset.top + contentOffset.y);
+
+            if (state == STPullToRefreshStateIdle || state == STPullToRefreshStateWaitingForRelease) {
+                if ([view respondsToSelector:@selector(setTriggerPrimingProgress:)]) {
+                    [view setTriggerPrimingProgress:(pullDistance / triggerDistance)];
+                }
+            }
+
             if (state != STPullToRefreshStateLoading) {
                 if (scrollView.isDragging) {
-                    CGFloat const pullDistance = viewHeight;
                     switch (direction) {
                         case STPullToRefreshDirectionUp: {
                             STPullToRefreshState newState;
-                            if (contentInset.top + contentOffset.y < -pullDistance) {
+                            if (pullDistance > triggerDistance) {
                                 newState = STPullToRefreshStateWaitingForRelease;
                             } else {
                                 newState = STPullToRefreshStateIdle;
@@ -179,7 +188,7 @@
     };
 
     if (animated) {
-        [UIView animateWithDuration:1./3. delay:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionAllowUserInteraction animations:animations completion:nil];
+        [UIView animateWithDuration:1./3. delay:0.0f options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionAllowUserInteraction animations:animations completion:nil];
     } else {
         animations();
     }
