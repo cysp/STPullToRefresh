@@ -96,6 +96,13 @@
     }
 }
 
+- (void)triggerLoad {
+    if (_state != STPullToRefreshStateLoading) {
+        [self notifyDidTriggerLoad];
+        [self setState:STPullToRefreshStateLoading animated:YES];
+    }
+}
+
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
     UIScrollView * const scrollView = self.scrollView;
     UIEdgeInsets const contentInset = scrollView.contentInset;
