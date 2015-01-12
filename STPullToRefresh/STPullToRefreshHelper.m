@@ -88,16 +88,14 @@
     STPullToRefreshState const state = _state;
 
     if (object == scrollView) {
-        CGFloat offsetY = 0;
-        switch (state) {
-            case STPullToRefreshStateLoading:
-                offsetY = viewHeight;
-                break;
-            default:
-                break;
-        }
         CGFloat const scrollViewOriginY = contentOffset.y + contentInset.top;
-        CGFloat const viewOriginY = MIN(-viewHeight, scrollViewOriginY);
+        CGFloat viewOriginY;
+        if (state == STPullToRefreshStateLoading) {
+            viewOriginY = scrollViewOriginY - viewHeight;
+        } else {
+            viewOriginY = MIN(-viewHeight, scrollViewOriginY);
+        }
+
         CGFloat viewVisibility;
         switch (state) {
             case STPullToRefreshStateIdle:
