@@ -48,6 +48,8 @@ typedef enum STPullToRefreshState {
 @property (nonatomic,unsafe_unretained) UIScrollView *scrollView;
 @property (nonatomic,strong,readonly) UIView<STPullToRefreshHelperView> *view;
 
+- (void)setStateLoadingAnimated:(BOOL)animated;
+
 - (void)didFinishLoading;
 
 @end

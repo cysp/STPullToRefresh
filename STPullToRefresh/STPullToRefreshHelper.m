@@ -78,6 +78,9 @@
     }
 }
 
+- (void)setStateLoadingAnimated:(BOOL)animated {
+    [self setState:STPullToRefreshStateLoading animated:animated];
+}
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
     UIScrollView * const scrollView = self.scrollView;
