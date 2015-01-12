@@ -28,6 +28,7 @@
     if ((self = [super init])) {
         _direction = direction;
         _delegate = delegate;
+        _pullToTriggerHeightMultiplier = 1.0;
 
         viewClass = viewClass ?: [STPullToRefreshHelperView class];
         CGFloat const viewHeight = [viewClass naturalHeight];
@@ -54,7 +55,17 @@
                 CGRect const frame = (CGRect){ .origin = { .y = -viewHeight }, .size = { .width = scrollView.bounds.size.width, .height = viewHeight } };
                 view.frame = frame;
                 view.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleBottomMargin;
+                UIView *backgroundView = nil;
                 [scrollView addSubview:view];
+                if ([scrollView isKindOfClass:[UITableView class]]) {
+                    UITableView *tableView = (UITableView *)scrollView;
+                    backgroundView = [tableView backgroundView];
+                }
+                if (backgroundView) {
+                    [scrollView insertSubview:view aboveSubview:backgroundView];
+                } else {
+                    [scrollView insertSubview:view atIndex:0];
+                }
             } break;
         }
 
@@ -115,18 +126,26 @@
         view.alpha = viewVisibility;
         
         if ([keyPath isEqualToString:@"contentOffset"]) {
+
+            CGFloat const pullThreshold = viewHeight * self.pullToTriggerHeightMultiplier;
+            CGFloat const pullDistance = -(contentInset.top + contentOffset.y);
+            if ([view respondsToSelector:@selector(setTriggerPrimingProgress:)]) {
+                [view setTriggerPrimingProgress:(pullDistance / pullThreshold)];
+            }
+
             if (state != STPullToRefreshStateLoading) {
                 if (scrollView.isDragging) {
-                    CGFloat const pullDistance = viewHeight;
                     switch (direction) {
                         case STPullToRefreshDirectionUp: {
                             STPullToRefreshState newState;
-                            if (contentInset.top + contentOffset.y < -pullDistance) {
+                            if (pullDistance > pullThreshold) {
                                 newState = STPullToRefreshStateWaitingForRelease;
                             } else {
                                 newState = STPullToRefreshStateIdle;
                             }
-                            [self setState:newState animated:NO];
+                            if (state != STPullToRefreshStateLoading) {
+                                [self setState:newState animated:NO];
+                            }
                         } break;
                     }
                 } else if (state == STPullToRefreshStateWaitingForRelease) {
@@ -179,7 +198,7 @@
     };
 
     if (animated) {
-        [UIView animateWithDuration:1./3. delay:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionAllowUserInteraction animations:animations completion:nil];
+        [UIView animateWithDuration:1./3. delay:0.0f options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionAllowUserInteraction animations:animations completion:nil];
     } else {
         animations();
     }
