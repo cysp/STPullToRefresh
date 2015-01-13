@@ -87,10 +87,9 @@
     }
 }
 
-- (void)triggerLoad {
+- (void)startRefreshAnimation:(BOOL)animated {
     if (_state != STPullToRefreshStateLoading) {
-        [self notifyDidTriggerLoad];
-        [self setState:STPullToRefreshStateLoading animated:YES];
+        [self setState:STPullToRefreshStateLoading animated:animated];
     }
 }
 
