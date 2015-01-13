@@ -45,11 +45,11 @@ typedef enum STPullToRefreshState {
 - (id)initWithDirection:(STPullToRefreshDirection)direction viewClass:(Class)viewClass delegate:(id<STPullToRefreshHelperDelegate>)delegate;
 
 @property (nonatomic) BOOL shouldKeepPullToRefreshViewAtFront;
-@property (nonatomic) CGFloat pullToTriggerHeightMultiplier;
+@property (nonatomic) CGFloat triggerDistance;
 @property (nonatomic,unsafe_unretained) UIScrollView *scrollView;
 @property (nonatomic,strong,readonly) UIView<STPullToRefreshHelperView> *view;
 
-- (void)startRefreshAnimation:(BOOL)animated;
+- (void)setStateLoadingAnimated:(BOOL)animated;
 
 - (void)didFinishLoading;
 

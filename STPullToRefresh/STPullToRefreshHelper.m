@@ -28,12 +28,12 @@
     if ((self = [super init])) {
         _direction = direction;
         _delegate = delegate;
-        _pullToTriggerHeightMultiplier = 1.0;
 
         viewClass = viewClass ?: [STPullToRefreshHelperView class];
         CGFloat const viewHeight = [viewClass naturalHeight];
         _view = [[viewClass alloc] initWithFrame:(CGRect){ .size = { 320, viewHeight } }];
         _view.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleBottomMargin;
+        _triggerDistance = viewHeight;
     }
     return self;
 }
@@ -55,17 +55,7 @@
                 CGRect const frame = (CGRect){ .origin = { .y = -viewHeight }, .size = { .width = scrollView.bounds.size.width, .height = viewHeight } };
                 view.frame = frame;
                 view.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleBottomMargin;
-                UIView *backgroundView = nil;
-                if ([scrollView isKindOfClass:[UITableView class]]) {
-                    UITableView *tableView = (UITableView *)scrollView;
-                    backgroundView = [tableView backgroundView];
-                }
-                if (backgroundView) {
-                    [scrollView insertSubview:view aboveSubview:backgroundView];
-                } else {
-                    [scrollView insertSubview:view atIndex:0];
-                }
-
+                [scrollView insertSubview:view atIndex:0];
             } break;
         }
 
@@ -87,7 +77,7 @@
     }
 }
 
-- (void)startRefreshAnimation:(BOOL)animated {
+- (void)setStateLoadingAnimated:(BOOL)animated {
     [self setState:STPullToRefreshStateLoading animated:animated];
 }
 
@@ -131,11 +121,10 @@
         }
         
         if ([keyPath isEqualToString:@"contentOffset"]) {
-
-            CGFloat const pullThreshold = viewHeight * self.pullToTriggerHeightMultiplier;
+            CGFloat const triggerDistance = [self triggerDistance];
             CGFloat const pullDistance = -(contentInset.top + contentOffset.y);
             if ([view respondsToSelector:@selector(setTriggerPrimingProgress:)]) {
-                [view setTriggerPrimingProgress:(pullDistance / pullThreshold)];
+                [view setTriggerPrimingProgress:(pullDistance / triggerDistance)];
             }
 
             if (state != STPullToRefreshStateLoading) {
@@ -143,14 +132,12 @@
                     switch (direction) {
                         case STPullToRefreshDirectionUp: {
                             STPullToRefreshState newState;
-                            if (pullDistance > pullThreshold) {
+                            if (pullDistance > triggerDistance) {
                                 newState = STPullToRefreshStateWaitingForRelease;
                             } else {
                                 newState = STPullToRefreshStateIdle;
                             }
-                            if (state != STPullToRefreshStateLoading) {
-                                [self setState:newState animated:NO];
-                            }
+                            [self setState:newState animated:NO];
                         } break;
                     }
                 } else if (state == STPullToRefreshStateWaitingForRelease) {
