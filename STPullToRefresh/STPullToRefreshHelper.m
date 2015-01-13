@@ -88,9 +88,7 @@
 }
 
 - (void)startRefreshAnimation:(BOOL)animated {
-    if (_state != STPullToRefreshStateLoading) {
-        [self setState:STPullToRefreshStateLoading animated:animated];
-    }
+    [self setState:STPullToRefreshStateLoading animated:animated];
 }
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
