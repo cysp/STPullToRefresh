@@ -75,15 +75,6 @@
     }
 }
 
-- (void)moveRefreshViewToFront {
-    UIScrollView * const scrollView = self.scrollView;
-    UIView * const view = self.view;
-    
-    [view removeFromSuperview];
-    [scrollView insertSubview:view atIndex:[scrollView.subviews count]];
-}
-
-
 - (void)setState:(STPullToRefreshState)state animated:(BOOL)animated {
     if (_state != state) {
         UIScrollView * const scrollView = self.scrollView;
@@ -138,6 +129,9 @@
         };
         view.center = viewCenter;
         view.alpha = viewVisibility;
+        if (self.shouldKeepPullToRefreshViewAtFront) {
+            [scrollView bringSubviewToFront:view];
+        }
         
         if ([keyPath isEqualToString:@"contentOffset"]) {
 
