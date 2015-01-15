@@ -33,6 +33,7 @@
         CGFloat const viewHeight = [viewClass naturalHeight];
         _view = [[viewClass alloc] initWithFrame:(CGRect){ .size = { 320, viewHeight } }];
         _view.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleBottomMargin;
+        _triggerDistance = viewHeight;
     }
     return self;
 }
@@ -54,7 +55,7 @@
                 CGRect const frame = (CGRect){ .origin = { .y = -viewHeight }, .size = { .width = scrollView.bounds.size.width, .height = viewHeight } };
                 view.frame = frame;
                 view.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleBottomMargin;
-                [scrollView addSubview:view];
+                [scrollView insertSubview:view atIndex:0];
             } break;
         }
 
@@ -63,7 +64,6 @@
         [scrollView addObserver:self forKeyPath:@"contentInset" options:NSKeyValueObservingOptionNew context:NULL];
     }
 }
-
 
 - (void)setState:(STPullToRefreshState)state animated:(BOOL)animated {
     if (_state != state) {
@@ -77,6 +77,9 @@
     }
 }
 
+- (void)setStateLoadingAnimated:(BOOL)animated {
+    [self setState:STPullToRefreshStateLoading animated:animated];
+}
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
     UIScrollView * const scrollView = self.scrollView;
@@ -88,16 +91,14 @@
     STPullToRefreshState const state = _state;
 
     if (object == scrollView) {
-        CGFloat offsetY = 0;
-        switch (state) {
-            case STPullToRefreshStateLoading:
-                offsetY = viewHeight;
-                break;
-            default:
-                break;
-        }
         CGFloat const scrollViewOriginY = contentOffset.y + contentInset.top;
-        CGFloat const viewOriginY = MIN(-viewHeight, scrollViewOriginY);
+        CGFloat viewOriginY;
+        if (state == STPullToRefreshStateLoading) {
+            viewOriginY = scrollViewOriginY - viewHeight;
+        } else {
+            viewOriginY = MIN(-viewHeight, scrollViewOriginY);
+        }
+
         CGFloat viewVisibility;
         switch (state) {
             case STPullToRefreshStateIdle:
@@ -115,15 +116,23 @@
         };
         view.center = viewCenter;
         view.alpha = viewVisibility;
+        if (self.shouldKeepPullToRefreshViewAtFront) {
+            [scrollView bringSubviewToFront:view];
+        }
         
         if ([keyPath isEqualToString:@"contentOffset"]) {
+            CGFloat const triggerDistance = [self triggerDistance];
+            CGFloat const pullDistance = -(contentInset.top + contentOffset.y);
+            if ([view respondsToSelector:@selector(setTriggerPrimingProgress:)]) {
+                [view setTriggerPrimingProgress:(pullDistance / triggerDistance)];
+            }
+
             if (state != STPullToRefreshStateLoading) {
                 if (scrollView.isDragging) {
-                    CGFloat const pullDistance = viewHeight;
                     switch (direction) {
                         case STPullToRefreshDirectionUp: {
                             STPullToRefreshState newState;
-                            if (contentInset.top + contentOffset.y < -pullDistance) {
+                            if (pullDistance > triggerDistance) {
                                 newState = STPullToRefreshStateWaitingForRelease;
                             } else {
                                 newState = STPullToRefreshStateIdle;
@@ -181,7 +190,7 @@
     };
 
     if (animated) {
-        [UIView animateWithDuration:1./3. delay:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionAllowUserInteraction animations:animations completion:nil];
+        [UIView animateWithDuration:1./3. delay:0.0f options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionAllowUserInteraction animations:animations completion:nil];
     } else {
         animations();
     }
