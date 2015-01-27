@@ -122,12 +122,13 @@
         if ([keyPath isEqualToString:@"contentOffset"]) {
             CGFloat const triggerDistance = [self triggerDistance];
             CGFloat const pullDistance = -(contentInset.top + contentOffset.y);
-            if ([view respondsToSelector:@selector(setTriggerPrimingProgress:)]) {
-                [view setTriggerPrimingProgress:(pullDistance / triggerDistance)];
-            }
 
             if (state != STPullToRefreshStateLoading) {
                 if (scrollView.isDragging) {
+                    if ([view respondsToSelector:@selector(setTriggerPrimingProgress:)]) {
+                        [view setTriggerPrimingProgress:(pullDistance / triggerDistance)];
+                    }
+
                     switch (direction) {
                         case STPullToRefreshDirectionUp: {
                             STPullToRefreshState newState;
