@@ -96,7 +96,7 @@
         if (state == STPullToRefreshStateLoading) {
             viewOriginY = scrollViewOriginY - viewHeight;
         } else {
-            viewOriginY = MIN(-viewHeight, scrollViewOriginY);
+            viewOriginY = scrollViewOriginY;
         }
 
         CGFloat viewVisibility;
@@ -115,7 +115,6 @@
             .y = viewOriginY + viewHeight/2.,
         };
         view.center = viewCenter;
-        view.alpha = viewVisibility;
         if (self.shouldKeepPullToRefreshViewAtFront) {
             [scrollView bringSubviewToFront:view];
         }
