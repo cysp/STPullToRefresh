@@ -97,26 +97,14 @@
         if (state == STPullToRefreshStateLoading) {
             viewOriginY = scrollViewOriginY - viewHeight;
         } else {
-            viewOriginY = MIN(-viewHeight, scrollViewOriginY);
+            viewOriginY = scrollViewOriginY;
         }
 
-        CGFloat viewVisibility;
-        switch (state) {
-            case STPullToRefreshStateIdle:
-            case STPullToRefreshStateLoaded:
-            case STPullToRefreshStateWaitingForRelease:
-                viewVisibility = -scrollViewOriginY / viewHeight;
-                break;
-            case STPullToRefreshStateLoading:
-                viewVisibility = 1;
-                break;
-        }
         CGPoint viewCenter = (CGPoint){
             .x = CGRectGetMidX(scrollView.bounds),
             .y = viewOriginY + viewHeight/2.,
         };
         view.center = viewCenter;
-        view.alpha = viewVisibility;
         
         if ([keyPath isEqualToString:@"contentOffset"]) {
             CGFloat const triggerDistance = [self triggerDistance];
