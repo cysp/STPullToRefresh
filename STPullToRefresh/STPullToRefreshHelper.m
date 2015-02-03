@@ -19,6 +19,7 @@
 @private
     STPullToRefreshDirection _direction;
     STPullToRefreshState _state;
+    CGFloat _topContentInsetScrollAdjustment;
 }
 
 - (id)initWithDirection:(STPullToRefreshDirection)direction delegate:(id<STPullToRefreshHelperDelegate>)delegate {
@@ -95,7 +96,7 @@
         CGFloat const scrollViewOriginY = contentOffset.y + contentInset.top;
         CGFloat viewOriginY;
         if (state == STPullToRefreshStateLoading) {
-            viewOriginY = scrollViewOriginY - viewHeight;
+            viewOriginY = scrollViewOriginY - viewHeight + _topContentInsetScrollAdjustment;
         } else {
             viewOriginY = scrollViewOriginY;
         }
@@ -107,6 +108,18 @@
         view.center = viewCenter;
         
         if ([keyPath isEqualToString:@"contentOffset"]) {
+            if (state == STPullToRefreshStateLoading) {
+                UIEdgeInsets contentInset = scrollView.contentInset;
+                CGFloat topContentInsetMax = contentInset.top + _topContentInsetScrollAdjustment;
+                CGFloat topContentInsetMin = topContentInsetMax - self.verticalInsetOffsetWhileLoading;
+                CGFloat desiredTopContentInset = MIN(MAX(topContentInsetMin, -scrollView.contentOffset.y), topContentInsetMax);
+                if (desiredTopContentInset != contentInset.top) {
+                    _topContentInsetScrollAdjustment += contentInset.top - desiredTopContentInset;
+                    contentInset.top = desiredTopContentInset;
+                    scrollView.contentInset = contentInset;
+                }
+            }
+            
             CGFloat const triggerDistance = [self triggerDistance];
             CGFloat const pullDistance = -(contentInset.top + contentOffset.y);
 
@@ -157,20 +170,18 @@
     return [self modifyScrollView:scrollView forState:state oldState:oldState animated:NO];
 }
 - (void)modifyScrollView:(UIScrollView *)scrollView forState:(STPullToRefreshState)state oldState:(STPullToRefreshState)oldState animated:(BOOL)animated {
-    int verticalInsetModifier = 0;
+    CGFloat verticalInsetOffset = 0;
     if (state == STPullToRefreshStateLoading && oldState != STPullToRefreshStateLoading) {
-        verticalInsetModifier = 1;
+        verticalInsetOffset = self.verticalInsetOffsetWhileLoading;
     } else if (state != STPullToRefreshStateLoading && oldState == STPullToRefreshStateLoading) {
-        verticalInsetModifier = -1;
+        verticalInsetOffset = _topContentInsetScrollAdjustment-self.verticalInsetOffsetWhileLoading;
+        _topContentInsetScrollAdjustment = 0;
     }
 
-    UIView<STPullToRefreshHelperView> * const view = self.view;
-    CGFloat const viewHeight = [view.class naturalHeight];
-    CGFloat const verticalInset = viewHeight;
     UIEdgeInsets edgeInsets = scrollView.contentInset;
     switch (_direction) {
         case STPullToRefreshDirectionUp:
-            edgeInsets.top += verticalInset * verticalInsetModifier;
+            edgeInsets.top += verticalInsetOffset;
             break;
     }
 
@@ -183,6 +194,17 @@
     } else {
         animations();
     }
+}
+
+- (CGFloat)verticalInsetOffsetWhileLoading {
+    UIView<STPullToRefreshHelperView> * const view = self.view;
+    CGFloat const viewHeight = [view.class naturalHeight];
+    CGFloat const verticalInset = viewHeight;
+    switch (_direction) {
+        case STPullToRefreshDirectionUp:
+            return verticalInset;
+    }
+    return 0;
 }
 
 @end
