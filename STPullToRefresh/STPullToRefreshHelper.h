@@ -45,6 +45,7 @@ typedef enum STPullToRefreshState {
 - (id)initWithDirection:(STPullToRefreshDirection)direction viewClass:(Class)viewClass delegate:(id<STPullToRefreshHelperDelegate>)delegate;
 
 @property (nonatomic) CGFloat triggerDistance;
+@property (nonatomic) NSTimeInterval minimumLoadingTime;
 @property (nonatomic,unsafe_unretained) UIScrollView *scrollView;
 @property (nonatomic,strong,readonly) UIView<STPullToRefreshHelperView> *view;
 

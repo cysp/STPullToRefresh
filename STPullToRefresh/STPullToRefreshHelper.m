@@ -20,6 +20,7 @@
     STPullToRefreshDirection _direction;
     STPullToRefreshState _state;
     CGFloat _topContentInsetScrollAdjustment;
+    NSDate *_loadingStartDate;
 }
 
 - (id)initWithDirection:(STPullToRefreshDirection)direction delegate:(id<STPullToRefreshHelperDelegate>)delegate {
@@ -72,6 +73,10 @@
         UIScrollView * const scrollView = self.scrollView;
         STPullToRefreshState const oldState = _state;
 
+        if (state == STPullToRefreshStateLoading) {
+            _loadingStartDate = [NSDate date];
+        }
+        
         _state = state;
         [_view setState:state animated:animated];
 
@@ -159,11 +164,20 @@
 }
 
 - (void)didFinishLoading {
-    STPullToRefreshState const state = _state;
-    if (state == STPullToRefreshStateLoading) {
-        [self setState:STPullToRefreshStateLoaded animated:YES];
-        [self.scrollView flashScrollIndicators];
+    // Delay until we've animated for at least _minimumLoadingTime
+    NSTimeInterval delay = 0;
+    NSTimeInterval loadingInterval = -[_loadingStartDate timeIntervalSinceNow];
+    if (loadingInterval < _minimumLoadingTime) {
+        delay = _minimumLoadingTime - loadingInterval;
     }
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        STPullToRefreshState const state = _state;
+        if (state == STPullToRefreshStateLoading) {
+            [self setState:STPullToRefreshStateLoaded animated:YES];
+            [self.scrollView flashScrollIndicators];
+        }
+    });
 }
 
 - (void)modifyScrollView:(UIScrollView *)scrollView forState:(STPullToRefreshState)state oldState:(STPullToRefreshState)oldState {
