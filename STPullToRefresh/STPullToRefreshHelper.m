@@ -40,6 +40,12 @@
     return self;
 }
 
+- (void)dealloc {
+    [_scrollView removeObserver:self forKeyPath:@"contentSize"];
+    [_scrollView removeObserver:self forKeyPath:@"contentOffset"];
+    [_scrollView removeObserver:self forKeyPath:@"contentInset"];
+}
+
 - (void)setScrollView:(UIScrollView *)scrollView {
     if (scrollView != _scrollView) {
         [_scrollView removeObserver:self forKeyPath:@"contentSize"];
