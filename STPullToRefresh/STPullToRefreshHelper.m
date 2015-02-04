@@ -200,7 +200,17 @@
     }
 
     void(^animations)(void) = ^{
+        // We require that the contentOffset be adjusted to compensate for the change in the contentInset
+        // UIScrollView seems to do this for us *sometimes*, not not always
+        // We detect when it hasn't been done, and apply the requisite compensation ourselves
+        // (My theory is that UIScrollView will not do any adjustment if that adjustment will hide content that is already visible)
+        
+        CGPoint contentOffset = scrollView.contentOffset;
         [scrollView setContentInset:edgeInsets];
+        if (contentOffset.y == scrollView.contentOffset.y) {
+            contentOffset.y -= verticalInsetOffset;
+            [scrollView setContentOffset:contentOffset];
+        }
     };
 
     if (animated) {
