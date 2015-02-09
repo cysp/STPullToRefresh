@@ -176,12 +176,18 @@
     if (loadingInterval < _minimumLoadingTime) {
         delay = _minimumLoadingTime - loadingInterval;
     }
-    
+
+    __typeof__(self) __weak wself = self;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        STPullToRefreshState const state = _state;
+        __typeof__(self) const sself = wself;
+        if (!sself) {
+            return;
+        }
+
+        STPullToRefreshState const state = sself->_state;
         if (state == STPullToRefreshStateLoading) {
-            [self setState:STPullToRefreshStateLoaded animated:YES];
-            [self.scrollView flashScrollIndicators];
+            [sself setState:STPullToRefreshStateLoaded animated:YES];
+            [sself.scrollView flashScrollIndicators];
         }
     });
 }
