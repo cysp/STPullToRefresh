@@ -46,7 +46,7 @@ typedef enum STPullToRefreshState {
 
 @property (nonatomic) CGFloat triggerDistance;
 @property (nonatomic) NSTimeInterval minimumLoadingTime;
-@property (nonatomic,unsafe_unretained) UIScrollView *scrollView;
+@property (nonatomic,strong) UIScrollView *scrollView;
 @property (nonatomic,strong,readonly) UIView<STPullToRefreshHelperView> *view;
 
 - (void)setStateLoadingAnimated:(BOOL)animated;
