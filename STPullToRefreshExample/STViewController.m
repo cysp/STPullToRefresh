@@ -44,6 +44,7 @@
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil {
     if ((self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil])) {
         _pulltorefreshHelper = [[STPullToRefreshHelper alloc] initWithDirection:STPullToRefreshDirectionUp viewClass:nil delegate:self];
+        _pulltorefreshHelper.minimumLoadingTime = .5;
 
         self.navigationItem.rightBarButtonItem = self.editButtonItem;
     }
@@ -82,11 +83,26 @@
     pulltorefreshHelper.scrollView = scrollView;
 }
 
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^(void){
+        id<STPullToRefreshToken> const token = _pulltorefreshHelper.token;
+        (void)token;
+    });
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^(void){
+        id<STPullToRefreshToken> const token = _pulltorefreshHelper.token;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^(void){
+            (void)token;
+        });
+    });
+}
+
 #pragma mark - STPullToRefreshHelperDelegate
 
-- (void)pullToRefreshHelperDidTriggerLoad:(STPullToRefreshHelper *)helper {
+- (void)pullToRefreshHelper:(STPullToRefreshHelper *)helper didTriggerLoadWithToken:(id<STPullToRefreshToken>)token {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^(void){
-        [helper didFinishLoading];
+        (void)token;
     });
 }
 
