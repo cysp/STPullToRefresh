@@ -2,11 +2,15 @@
 //  License, v. 2.0. If a copy of the MPL was not distributed with this
 //  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 //
-//  Copyright (c) 2013 Scott Talbot. All rights reserved.
+//  Copyright (c) 2013-2015 Scott Talbot. All rights reserved.
 
 #import "STPullToRefreshHelper.h"
 #import <QuartzCore/QuartzCore.h>
 
+
+@interface STPullToRefreshToken : NSObject<STPullToRefreshToken>
+- (instancetype)initWithHelper:(STPullToRefreshHelper *)helper;
+@end
 
 @interface STPullToRefreshHelper ()
 - (id)initWithDirection:(STPullToRefreshDirection)direction delegate:(id<STPullToRefreshHelperDelegate>)delegate;
@@ -21,6 +25,8 @@
     STPullToRefreshState _state;
     CGFloat _topContentInsetScrollAdjustment;
     NSDate *_loadingStartDate;
+    NSHashTable *_tokens;
+    NSUInteger _nonTokenLoads;
 }
 
 - (id)initWithDirection:(STPullToRefreshDirection)direction delegate:(id<STPullToRefreshHelperDelegate>)delegate {
@@ -36,6 +42,8 @@
         _view = [[viewClass alloc] initWithFrame:(CGRect){ .size = { 320, viewHeight } }];
         _view.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleBottomMargin;
         _triggerDistance = viewHeight;
+
+        _tokens = [[NSHashTable alloc] initWithOptions:NSPointerFunctionsObjectPointerPersonality|NSPointerFunctionsWeakMemory capacity:4];
     }
     return self;
 }
@@ -45,6 +53,44 @@
     [_scrollView removeObserver:self forKeyPath:@"contentOffset"];
     [_scrollView removeObserver:self forKeyPath:@"contentInset"];
 }
+
+
+- (void)st_incrementNonTokenLoadCounter {
+    ++_nonTokenLoads;
+}
+- (void)st_decrementNonTokenLoadCounter {
+    if (_nonTokenLoads == 0) {
+        return;
+    }
+    --_nonTokenLoads;
+    [self st_checkForCompletion];
+}
+
+- (id<STPullToRefreshToken>)token {
+    STPullToRefreshToken * const token = [[STPullToRefreshToken alloc] initWithHelper:self];
+    [_tokens addObject:token];
+    [self setStateLoadingAnimated:YES];
+    return token;
+}
+
+- (void)st_tokenDidComplete:(STPullToRefreshToken *)token {
+    [_tokens removeObject:token];
+    [self st_checkForCompletion];
+}
+
+- (void)st_checkForCompletion {
+    NSAssert(NSThread.isMainThread, @"not on main thread");
+
+    if (_nonTokenLoads > 0) {
+        return;
+    }
+    if (_tokens.anyObject) {
+        return;
+    }
+
+    [self didFinishLoading];
+}
+
 
 - (void)setScrollView:(UIScrollView *)scrollView {
     if (scrollView != _scrollView) {
@@ -164,8 +210,9 @@
 
 - (void)notifyDidTriggerLoad {
     id<STPullToRefreshHelperDelegate> const delegate = self.delegate;
-    if ([delegate respondsToSelector:@selector(pullToRefreshHelperDidTriggerLoad:)]) {
-        [delegate pullToRefreshHelperDidTriggerLoad:self];
+    if ([delegate respondsToSelector:@selector(pullToRefreshHelper:didTriggerLoadWithToken:)]) {
+        id<STPullToRefreshToken> const token = self.token;
+        [delegate pullToRefreshHelper:self didTriggerLoadWithToken:token];
     }
 }
 
@@ -241,6 +288,28 @@
             return verticalInset;
     }
     return 0;
+}
+
+@end
+
+
+@implementation STPullToRefreshToken {
+@private
+    STPullToRefreshHelper *_helper;
+}
+
+- (instancetype)init {
+    return [self initWithHelper:nil];
+}
+- (instancetype)initWithHelper:(STPullToRefreshHelper *)helper {
+    if ((self = [super init])) {
+        _helper = helper;
+    }
+    return self;
+}
+
+- (void)dealloc {
+    [_helper st_tokenDidComplete:self];
 }
 
 @end
