@@ -91,7 +91,13 @@
 }
 
 - (void)setStateLoadingAnimated:(BOOL)animated {
-    [self setState:STPullToRefreshStateLoading animated:animated];
+    __weak __typeof__(self) wself = self;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        __typeof__(self) sself = wself;
+        if (sself) {
+            [sself setState:STPullToRefreshStateLoading animated:animated];
+        }
+    });
 }
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
