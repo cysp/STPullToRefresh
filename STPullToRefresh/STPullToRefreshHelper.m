@@ -170,6 +170,10 @@
 }
 
 - (void)didFinishLoading {
+    [self didFinishLoadingWithCompletion:nil];
+}
+
+- (void)didFinishLoadingWithCompletion:(dispatch_block_t)completion {
     // Delay until we've animated for at least _minimumLoadingTime
     NSTimeInterval delay = 0;
     NSTimeInterval loadingInterval = -[_loadingStartDate timeIntervalSinceNow];
@@ -188,6 +192,10 @@
         if (state == STPullToRefreshStateLoading) {
             [sself setState:STPullToRefreshStateLoaded animated:YES];
             [sself.scrollView flashScrollIndicators];
+        }
+
+        if (completion) {
+            completion();
         }
     });
 }

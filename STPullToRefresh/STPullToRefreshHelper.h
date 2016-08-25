@@ -51,6 +51,7 @@ typedef enum STPullToRefreshState {
 
 - (void)setStateLoadingAnimated:(BOOL)animated;
 
-- (void)didFinishLoading;
+- (void)didFinishLoading __attribute__((deprecated("Use didFinishLoadingWithCompletion: instead")));
+- (void)didFinishLoadingWithCompletion:(dispatch_block_t)completion;
 
 @end
